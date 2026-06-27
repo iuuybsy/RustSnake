@@ -4,7 +4,6 @@ use ggez::{
     event::{self, EventHandler},
     glam::Vec2,
     graphics::{self, Canvas, Color, DrawMode, Mesh, MeshBuilder, Rect},
-    winit::keyboard::Key,
 };
 use rand::prelude::*;
 use std::collections::VecDeque;
@@ -18,13 +17,14 @@ const INIT_APPLE_Y: u32 = (GRID_ROWS + 1) / 2;
 const INIT_BODY_LEFT: u32 = 6;
 const INIT_BODY_RIGHT: u32 = 8;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum SnakeGameElement {
     Body,
     Apple,
     Empty,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum MoveDirection {
     Up,
     Down,
@@ -169,6 +169,15 @@ impl SnakeGameState {
         })
     }
 
+    fn is_opposite_direction(direction1: &MoveDirection, direction2: &MoveDirection) -> bool {
+        match direction1 {
+            MoveDirection::Down => direction2 == &MoveDirection::Up,
+            MoveDirection::Left => direction2 == &MoveDirection::Right,
+            MoveDirection::Up => direction2 == &MoveDirection::Down,
+            MoveDirection::Right => direction2 == &MoveDirection::Left,
+        }
+    }
+
     fn check_snake_loop(&mut self, ctx: &mut Context) {
         let head_x = self.map_info.body_deque.front().unwrap().x;
         let head_y = self.map_info.body_deque.front().unwrap().y;
@@ -207,18 +216,10 @@ impl EventHandler for SnakeGameState {
                     head_y = (head_y + 1) % GRID_ROWS;
                 }
                 MoveDirection::Left => {
-                    if head_x == 0 {
-                        head_x = GRID_COLS - 1;
-                    } else {
-                        head_x = head_x - 1;
-                    }
+                    head_x = (head_x + GRID_COLS - 1) % GRID_COLS;
                 }
                 MoveDirection::Up => {
-                    if head_y == 0 {
-                        head_y = GRID_COLS - 1;
-                    } else {
-                        head_y = head_y - 1;
-                    }
+                    head_y = (head_y + GRID_ROWS - 1) % GRID_ROWS;
                 }
                 MoveDirection::Right => {
                     head_x = (head_x + 1) % GRID_COLS;
@@ -244,48 +245,18 @@ impl EventHandler for SnakeGameState {
     ) -> Result<(), GameError> {
         if !repeated {
             let key_info = input.event.logical_key;
-
-            match self.move_direction {
-                MoveDirection::Left => match key_info {
-                    Key::Character(key) => {
-                        if key == "s" {
-                            self.move_direction = MoveDirection::Down;
-                        } else if key == "w" {
-                            self.move_direction = MoveDirection::Up;
-                        }
-                    }
-                    _ => {}
-                },
-                MoveDirection::Up => match key_info {
-                    Key::Character(key) => {
-                        if key == "a" {
-                            self.move_direction = MoveDirection::Left;
-                        } else if key == "d" {
-                            self.move_direction = MoveDirection::Right;
-                        }
-                    }
-                    _ => {}
-                },
-                MoveDirection::Right => match key_info {
-                    Key::Character(key) => {
-                        if key == "s" {
-                            self.move_direction = MoveDirection::Down;
-                        } else if key == "w" {
-                            self.move_direction = MoveDirection::Up;
-                        }
-                    }
-                    _ => {}
-                },
-                MoveDirection::Down => match key_info {
-                    Key::Character(key) => {
-                        if key == "a" {
-                            self.move_direction = MoveDirection::Left;
-                        } else if key == "d" {
-                            self.move_direction = MoveDirection::Right;
-                        }
-                    }
-                    _ => {}
-                },
+            let key_str = key_info.to_text().unwrap();
+            let new_direction = match key_str {
+                "s" => Some(MoveDirection::Down),
+                "a" => Some(MoveDirection::Left),
+                "w" => Some(MoveDirection::Up),
+                "d" => Some(MoveDirection::Right),
+                _ => None,
+            };
+            if let Some(new_direction) = new_direction {
+                if !SnakeGameState::is_opposite_direction(&self.move_direction, &new_direction) {
+                    self.move_direction = new_direction;
+                }
             }
         }
         Ok(())
