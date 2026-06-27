@@ -9,10 +9,10 @@ use ggez::{
 use rand::prelude::*;
 use std::collections::VecDeque;
 
-const TARGET_FPS: u32 = 5;
-const SQUARE_LENGTH: f32 = 60.0;
-const GRID_COLS: u32 = 21;
-const GRID_ROWS: u32 = 21;
+const TARGET_FPS: u32 = 10;
+const SQUARE_LENGTH: f32 = 30.0;
+const GRID_COLS: u32 = 41;
+const GRID_ROWS: u32 = 41;
 
 #[derive(Clone, Copy, PartialEq)]
 enum SnakeGameElement {
@@ -46,10 +46,12 @@ struct SnakeGridMap {
 
 impl SnakeGridMap {
     pub fn new() -> Result<Self, GameError> {
-        let app_cord = SnakeGameCord::new(14, 10);
+        let apple_x = (GRID_COLS + 1) / 2 + 3;
+        let apple_y = (GRID_ROWS + 1) / 2;
+        let app_cord = SnakeGameCord::new(apple_x, apple_y);
         let mut body_deque: VecDeque<SnakeGameCord> = VecDeque::new();
         for i in 6..9 {
-            let body_cord = SnakeGameCord::new(i, 10);
+            let body_cord = SnakeGameCord::new(i, apple_y);
             body_deque.push_front(body_cord);
         }
         Ok(SnakeGridMap {
@@ -267,11 +269,6 @@ impl EventHandler for SnakeGameState {
         repeated: bool,
     ) -> Result<(), GameError> {
         if !repeated {
-            println!(
-                "Key pressed: physical key {:?}, logical key {:?}, modifier {:?}, repeat: {}",
-                input.event.physical_key, input.event.logical_key, input.mods, repeated
-            );
-
             let key_info = input.event.logical_key;
 
             match self.move_direc {
@@ -279,10 +276,8 @@ impl EventHandler for SnakeGameState {
                     Key::Character(key) => {
                         if key == "s" {
                             self.move_direc = MoveDirection::Down;
-                            println!("S pressed!");
                         } else if key == "w" {
                             self.move_direc = MoveDirection::Up;
-                            println!("W pressed!");
                         }
                     }
                     _ => {}
@@ -291,10 +286,8 @@ impl EventHandler for SnakeGameState {
                     Key::Character(key) => {
                         if key == "a" {
                             self.move_direc = MoveDirection::Left;
-                            println!("A pressed!");
                         } else if key == "d" {
                             self.move_direc = MoveDirection::Right;
-                            println!("D pressed!");
                         }
                     }
                     _ => {}
@@ -303,10 +296,8 @@ impl EventHandler for SnakeGameState {
                     Key::Character(key) => {
                         if key == "s" {
                             self.move_direc = MoveDirection::Down;
-                            println!("S pressed!");
                         } else if key == "w" {
                             self.move_direc = MoveDirection::Up;
-                            println!("W pressed!");
                         }
                     }
                     _ => {}
@@ -315,10 +306,8 @@ impl EventHandler for SnakeGameState {
                     Key::Character(key) => {
                         if key == "a" {
                             self.move_direc = MoveDirection::Left;
-                            println!("A pressed!");
                         } else if key == "d" {
                             self.move_direc = MoveDirection::Right;
-                            println!("D pressed!");
                         }
                     }
                     _ => {}
