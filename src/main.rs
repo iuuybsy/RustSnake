@@ -6,9 +6,10 @@ use ggez::{
     graphics::{self, Canvas, Color, DrawMode, Mesh, MeshBuilder, Rect},
     winit::keyboard::Key,
 };
+use rand::prelude::*;
 use std::collections::VecDeque;
 
-const TARGET_FPS: u32 = 30;
+const TARGET_FPS: u32 = 5;
 const SQUARE_LENGTH: f32 = 60.0;
 const GRID_COLS: u32 = 21;
 const GRID_ROWS: u32 = 21;
@@ -39,27 +40,19 @@ impl SnakeGameCord {
 }
 
 struct SnakeGridMap {
-    map_info: Vec<SnakeGameElement>,
     app_cord: SnakeGameCord,
     body_deque: VecDeque<SnakeGameCord>,
 }
 
 impl SnakeGridMap {
     pub fn new() -> Result<Self, GameError> {
-        let mut map_info: Vec<SnakeGameElement> =
-            vec![SnakeGameElement::Empty; (GRID_COLS * GRID_ROWS) as usize];
         let app_cord = SnakeGameCord::new(14, 10);
-        map_info[SnakeGridMap::cal_ind_from_cord(&app_cord)] = SnakeGameElement::Apple;
         let mut body_deque: VecDeque<SnakeGameCord> = VecDeque::new();
         for i in 6..9 {
             let body_cord = SnakeGameCord::new(i, 10);
             body_deque.push_front(body_cord);
         }
-        for cord in &body_deque {
-            map_info[SnakeGridMap::cal_ind_from_cord(&cord)] = SnakeGameElement::Body;
-        }
         Ok(SnakeGridMap {
-            map_info: map_info,
             app_cord: app_cord,
             body_deque: body_deque,
         })
@@ -73,35 +66,60 @@ impl SnakeGridMap {
         (cord.x + cord.y * GRID_COLS) as usize
     }
 
-    pub fn get_element(&self, x: u32, y: u32) -> Result<SnakeGameElement, GameError> {
-        let ind: usize = SnakeGridMap::cal_ind(x, y);
-        Ok(self.map_info[ind])
+    fn is_valid_apple_cord(&self, x: u32, y: u32) -> bool {
+        if x == self.app_cord.x && y == self.app_cord.y {
+            return false;
+        }
+        for body_cord in &self.body_deque {
+            if x == body_cord.x && y == body_cord.y {
+                return false;
+            }
+        }
+        true
     }
 
-    pub fn set_element(
-        &mut self,
-        x: u32,
-        y: u32,
-        element: SnakeGameElement,
-    ) -> Result<(), GameError> {
-        let ind: usize = SnakeGridMap::cal_ind(x, y);
-        self.map_info[ind] = element;
+    pub fn gen_new_apple(&mut self) -> Result<(), GameError> {
+        let mut rng = rand::rng();
+        let mut x: u32 = rng.random_range(0..GRID_COLS);
+        let mut y: u32 = rng.random_range(0..GRID_ROWS);
+        while !self.is_valid_apple_cord(x, y) {
+            x = rng.random_range(0..GRID_COLS);
+            y = rng.random_range(0..GRID_ROWS);
+        }
+
+        self.app_cord.x = x;
+        self.app_cord.y = y;
+
         Ok(())
     }
 
+    pub fn get_element(&self, x: u32, y: u32) -> Result<SnakeGameElement, GameError> {
+        if x == self.app_cord.x && y == self.app_cord.y {
+            return Ok(SnakeGameElement::Apple);
+        }
+        for element in &self.body_deque {
+            if x == element.x && y == element.y {
+                return Ok(SnakeGameElement::Body);
+            }
+        }
+        Ok(SnakeGameElement::Empty)
+    }
+
+    pub fn is_eating_apple(&self) -> bool {
+        self.body_deque.front().unwrap().x == self.app_cord.x
+            && self.body_deque.front().unwrap().y == self.app_cord.y
+    }
+
     pub fn is_apple(&self, x: u32, y: u32) -> bool {
-        let ind: usize = SnakeGridMap::cal_ind(x, y);
-        self.map_info[ind] == SnakeGameElement::Apple
+        self.get_element(x, y).unwrap() == SnakeGameElement::Apple
     }
 
     pub fn is_empty(&self, x: u32, y: u32) -> bool {
-        let ind: usize = SnakeGridMap::cal_ind(x, y);
-        self.map_info[ind] == SnakeGameElement::Empty
+        self.get_element(x, y).unwrap() == SnakeGameElement::Empty
     }
 
     pub fn is_body(&self, x: u32, y: u32) -> bool {
-        let ind: usize = SnakeGridMap::cal_ind(x, y);
-        self.map_info[ind] == SnakeGameElement::Body
+        self.get_element(x, y).unwrap() == SnakeGameElement::Body
     }
 }
 
@@ -142,7 +160,7 @@ impl SnakeGameState {
                         builder.rectangle(
                             DrawMode::fill(),
                             Rect::new(x_pos, y_pos, SQUARE_LENGTH, SQUARE_LENGTH),
-                            Color::GREEN,
+                            Color::RED,
                         )?;
                     }
                     SnakeGameElement::Body => {
@@ -170,6 +188,25 @@ impl SnakeGameState {
             move_direc: MoveDirection::Right,
         })
     }
+
+    fn check_snake_loop(&mut self, ctx: &mut Context) {
+        let head_x = self.map_info.body_deque.front().unwrap().x;
+        let head_y = self.map_info.body_deque.front().unwrap().y;
+        let mut count = 0;
+        for element in &self.map_info.body_deque {
+            if head_x == element.x && head_y == element.y {
+                count += 1;
+                if count > 1 {
+                    break;
+                }
+            }
+        }
+        if count > 1 {
+            self.map_info = SnakeGridMap::new().unwrap();
+            self.mesh = SnakeGameState::gen_mesh(ctx, &self.map_info).unwrap();
+            self.move_direc = MoveDirection::Right;
+        }
+    }
 }
 
 impl EventHandler for SnakeGameState {
@@ -181,7 +218,65 @@ impl EventHandler for SnakeGameState {
     }
 
     fn update(&mut self, ctx: &mut Context) -> Result<(), GameError> {
-        if ctx.time.check_update_time(TARGET_FPS) {}
+        if ctx.time.check_update_time(TARGET_FPS) {
+            self.mesh = SnakeGameState::gen_mesh(ctx, &self.map_info).unwrap();
+            let mut head_x = self.map_info.body_deque.front().unwrap().x;
+            let mut head_y = self.map_info.body_deque.front().unwrap().y;
+            match self.move_direc {
+                MoveDirection::Down => {
+                    head_y = (head_y + 1) % GRID_ROWS;
+                    let new_head = SnakeGameCord::new(head_x, head_y);
+                    self.map_info.body_deque.push_front(new_head);
+                    if self.map_info.is_eating_apple() {
+                        self.map_info.gen_new_apple();
+                    } else {
+                        self.map_info.body_deque.pop_back();
+                    }
+                }
+                MoveDirection::Left => {
+                    if head_x == 0 {
+                        head_x = GRID_COLS - 1;
+                    } else {
+                        head_x = head_x - 1;
+                    }
+                    self.map_info
+                        .body_deque
+                        .push_front(SnakeGameCord::new(head_x, head_y));
+                    if self.map_info.is_eating_apple() {
+                        self.map_info.gen_new_apple();
+                    } else {
+                        self.map_info.body_deque.pop_back();
+                    }
+                }
+                MoveDirection::Up => {
+                    if head_y == 0 {
+                        head_y = GRID_COLS - 1;
+                    } else {
+                        head_y = head_y - 1;
+                    }
+                    self.map_info
+                        .body_deque
+                        .push_front(SnakeGameCord::new(head_x, head_y));
+                    if self.map_info.is_eating_apple() {
+                        self.map_info.gen_new_apple();
+                    } else {
+                        self.map_info.body_deque.pop_back();
+                    }
+                }
+                MoveDirection::Right => {
+                    head_x = (head_x + 1) % GRID_COLS;
+                    self.map_info
+                        .body_deque
+                        .push_front(SnakeGameCord::new(head_x, head_y));
+                    if self.map_info.is_eating_apple() {
+                        self.map_info.gen_new_apple();
+                    } else {
+                        self.map_info.body_deque.pop_back();
+                    }
+                }
+            }
+            self.check_snake_loop(ctx);
+        }
         Ok(())
     }
 
