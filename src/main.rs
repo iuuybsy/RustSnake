@@ -210,7 +210,6 @@ impl EventHandler for SnakeGameState {
 
     fn update(&mut self, ctx: &mut Context) -> Result<(), GameError> {
         if ctx.time.check_update_time(TARGET_FPS) {
-            self.apple_mesh = SnakeGameState::build_apple_mesh(ctx, &self.map_info).unwrap();
             self.snake_mesh = SnakeGameState::build_snake_mesh(ctx, &self.map_info).unwrap();
             let mut head_x = self.map_info.body_deque.front().unwrap().x;
             let mut head_y = self.map_info.body_deque.front().unwrap().y;
@@ -232,6 +231,7 @@ impl EventHandler for SnakeGameState {
             self.map_info.body_deque.push_front(new_head);
             if self.map_info.is_eating_apple() {
                 self.map_info.spawn_apple();
+                self.apple_mesh = SnakeGameState::build_apple_mesh(ctx, &self.map_info).unwrap();
             } else {
                 self.map_info.body_deque.pop_back();
             }
