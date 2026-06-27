@@ -13,6 +13,10 @@ const TARGET_FPS: u32 = 10;
 const SQUARE_LENGTH: f32 = 30.0;
 const GRID_COLS: u32 = 41;
 const GRID_ROWS: u32 = 41;
+const INIT_APPLE_X: u32 = (GRID_COLS + 1) / 2 + 3;
+const INIT_APPLE_Y: u32 = (GRID_ROWS + 1) / 2;
+const INIT_BODY_LEFT: u32 = 6;
+const INIT_BODY_RIGHT: u32 = 8;
 
 #[derive(Clone, Copy, PartialEq)]
 enum SnakeGameElement {
@@ -46,19 +50,17 @@ struct SnakeGridMap {
 }
 
 impl SnakeGridMap {
-    pub fn new() -> Result<Self, GameError> {
-        let apple_x = (GRID_COLS + 1) / 2 + 3;
-        let apple_y = (GRID_ROWS + 1) / 2;
-        let app_cord = SnakeGameCord::new(apple_x, apple_y);
+    pub fn new() -> Self {
+        let app_cord = SnakeGameCord::new(INIT_APPLE_X, INIT_APPLE_Y);
         let mut body_deque: VecDeque<SnakeGameCord> = VecDeque::new();
-        for i in 6..9 {
-            let body_cord = SnakeGameCord::new(i, apple_y);
+        for i in INIT_BODY_LEFT..=INIT_BODY_RIGHT {
+            let body_cord = SnakeGameCord::new(i, INIT_APPLE_Y);
             body_deque.push_front(body_cord);
         }
-        Ok(SnakeGridMap {
+        SnakeGridMap {
             app_cord: app_cord,
             body_deque: body_deque,
-        })
+        }
     }
 
     fn is_valid_apple_cord(&self, x: u32, y: u32) -> bool {
@@ -72,7 +74,7 @@ impl SnakeGridMap {
         true
     }
 
-    pub fn gen_new_apple(&mut self) -> Result<(), GameError> {
+    pub fn gen_new_apple(&mut self) {
         let mut rng = rand::rng();
         let mut x: u32 = rng.random_range(0..GRID_COLS);
         let mut y: u32 = rng.random_range(0..GRID_ROWS);
@@ -83,23 +85,21 @@ impl SnakeGridMap {
 
         self.app_cord.x = x;
         self.app_cord.y = y;
-
-        Ok(())
     }
 
-    pub fn get_element(&self, x: u32, y: u32) -> Result<SnakeGameElement, GameError> {
+    pub fn get_element(&self, x: u32, y: u32) -> SnakeGameElement {
         if x == self.app_cord.x && y == self.app_cord.y {
-            return Ok(SnakeGameElement::Apple);
+            return SnakeGameElement::Apple;
         }
         let cur_cord = SnakeGameCord::new(x, y);
         if self.body_deque.contains(&cur_cord) {
-            return Ok(SnakeGameElement::Body);
+            return SnakeGameElement::Body;
         }
-        Ok(SnakeGameElement::Empty)
+        SnakeGameElement::Empty
     }
 
     pub fn is_eating_apple(&self) -> bool {
-        self.body_deque.contains(&self.app_cord)
+        self.body_deque.front() == Some(&self.app_cord)
     }
 }
 
@@ -121,7 +121,7 @@ impl SnakeGameState {
                 let x_pos = i as f32 * SQUARE_LENGTH;
                 let y_pos = j as f32 * SQUARE_LENGTH;
 
-                match map_info.get_element(i, j).unwrap() {
+                match map_info.get_element(i, j) {
                     SnakeGameElement::Empty => {
                         let current_color = {
                             if (i + j) % 2 == 1 {
@@ -159,7 +159,7 @@ impl SnakeGameState {
     }
 
     pub fn new(ctx: &mut Context) -> Result<Self, GameError> {
-        let map_info = SnakeGridMap::new().unwrap();
+        let map_info = SnakeGridMap::new();
         let mesh = SnakeGameState::gen_mesh(ctx, &map_info).unwrap();
 
         Ok(SnakeGameState {
@@ -182,7 +182,7 @@ impl SnakeGameState {
             }
         }
         if count > 1 {
-            self.map_info = SnakeGridMap::new().unwrap();
+            self.map_info = SnakeGridMap::new();
             self.mesh = SnakeGameState::gen_mesh(ctx, &self.map_info).unwrap();
             self.move_direc = MoveDirection::Right;
         }
@@ -227,7 +227,7 @@ impl EventHandler for SnakeGameState {
             let new_head = SnakeGameCord::new(head_x, head_y);
             self.map_info.body_deque.push_front(new_head);
             if self.map_info.is_eating_apple() {
-                self.map_info.gen_new_apple()?;
+                self.map_info.gen_new_apple();
             } else {
                 self.map_info.body_deque.pop_back();
             }
