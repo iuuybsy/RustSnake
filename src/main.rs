@@ -58,14 +58,6 @@ impl SnakeGridMap {
         })
     }
 
-    fn cal_ind(x: u32, y: u32) -> usize {
-        (x + y * GRID_COLS) as usize
-    }
-
-    fn cal_ind_from_cord(cord: &SnakeGameCord) -> usize {
-        (cord.x + cord.y * GRID_COLS) as usize
-    }
-
     fn is_valid_apple_cord(&self, x: u32, y: u32) -> bool {
         if x == self.app_cord.x && y == self.app_cord.y {
             return false;
@@ -108,18 +100,6 @@ impl SnakeGridMap {
     pub fn is_eating_apple(&self) -> bool {
         self.body_deque.front().unwrap().x == self.app_cord.x
             && self.body_deque.front().unwrap().y == self.app_cord.y
-    }
-
-    pub fn is_apple(&self, x: u32, y: u32) -> bool {
-        self.get_element(x, y).unwrap() == SnakeGameElement::Apple
-    }
-
-    pub fn is_empty(&self, x: u32, y: u32) -> bool {
-        self.get_element(x, y).unwrap() == SnakeGameElement::Empty
-    }
-
-    pub fn is_body(&self, x: u32, y: u32) -> bool {
-        self.get_element(x, y).unwrap() == SnakeGameElement::Body
     }
 }
 
@@ -228,7 +208,7 @@ impl EventHandler for SnakeGameState {
                     let new_head = SnakeGameCord::new(head_x, head_y);
                     self.map_info.body_deque.push_front(new_head);
                     if self.map_info.is_eating_apple() {
-                        self.map_info.gen_new_apple();
+                        self.map_info.gen_new_apple()?;
                     } else {
                         self.map_info.body_deque.pop_back();
                     }
@@ -243,7 +223,7 @@ impl EventHandler for SnakeGameState {
                         .body_deque
                         .push_front(SnakeGameCord::new(head_x, head_y));
                     if self.map_info.is_eating_apple() {
-                        self.map_info.gen_new_apple();
+                        self.map_info.gen_new_apple()?;
                     } else {
                         self.map_info.body_deque.pop_back();
                     }
@@ -258,7 +238,7 @@ impl EventHandler for SnakeGameState {
                         .body_deque
                         .push_front(SnakeGameCord::new(head_x, head_y));
                     if self.map_info.is_eating_apple() {
-                        self.map_info.gen_new_apple();
+                        self.map_info.gen_new_apple()?;
                     } else {
                         self.map_info.body_deque.pop_back();
                     }
@@ -269,7 +249,7 @@ impl EventHandler for SnakeGameState {
                         .body_deque
                         .push_front(SnakeGameCord::new(head_x, head_y));
                     if self.map_info.is_eating_apple() {
-                        self.map_info.gen_new_apple();
+                        self.map_info.gen_new_apple()?;
                     } else {
                         self.map_info.body_deque.pop_back();
                     }
@@ -360,7 +340,7 @@ fn main() -> Result<(), GameError> {
         .build()
         .unwrap();
 
-    let mut snake_game_state = SnakeGameState::new(&mut snake_context)?;
+    let snake_game_state = SnakeGameState::new(&mut snake_context)?;
 
     event::run(snake_context, snake_game_loop, snake_game_state)
 }
