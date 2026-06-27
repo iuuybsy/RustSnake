@@ -6,6 +6,7 @@ use ggez::{
     graphics::{self, Canvas, Color, DrawMode, Mesh, MeshBuilder, Rect},
     winit::keyboard::Key,
 };
+use std::collections::VecDeque;
 
 const TARGET_FPS: u32 = 30;
 const SQUARE_LENGTH: f32 = 60.0;
@@ -26,23 +27,50 @@ enum MoveDirection {
     Right,
 }
 
+struct SnakeGameCord {
+    x: u32,
+    y: u32,
+}
+
+impl SnakeGameCord {
+    pub fn new(x: u32, y: u32) -> Self {
+        SnakeGameCord { x, y }
+    }
+}
+
 struct SnakeGridMap {
     map_info: Vec<SnakeGameElement>,
+    app_cord: SnakeGameCord,
+    body_deque: VecDeque<SnakeGameCord>,
 }
 
 impl SnakeGridMap {
     pub fn new() -> Result<Self, GameError> {
         let mut map_info: Vec<SnakeGameElement> =
             vec![SnakeGameElement::Empty; (GRID_COLS * GRID_ROWS) as usize];
-        map_info[224] = SnakeGameElement::Apple;
-        for i in 216..219 {
-            map_info[i] = SnakeGameElement::Body;
+        let app_cord = SnakeGameCord::new(14, 10);
+        map_info[SnakeGridMap::cal_ind_from_cord(&app_cord)] = SnakeGameElement::Apple;
+        let mut body_deque: VecDeque<SnakeGameCord> = VecDeque::new();
+        for i in 6..9 {
+            let body_cord = SnakeGameCord::new(i, 10);
+            body_deque.push_front(body_cord);
         }
-        Ok(SnakeGridMap { map_info: map_info })
+        for cord in &body_deque {
+            map_info[SnakeGridMap::cal_ind_from_cord(&cord)] = SnakeGameElement::Body;
+        }
+        Ok(SnakeGridMap {
+            map_info: map_info,
+            app_cord: app_cord,
+            body_deque: body_deque,
+        })
     }
 
     fn cal_ind(x: u32, y: u32) -> usize {
         (x + y * GRID_COLS) as usize
+    }
+
+    fn cal_ind_from_cord(cord: &SnakeGameCord) -> usize {
+        (cord.x + cord.y * GRID_COLS) as usize
     }
 
     pub fn get_element(&self, x: u32, y: u32) -> Result<SnakeGameElement, GameError> {
@@ -79,9 +107,6 @@ impl SnakeGridMap {
 
 struct SnakeGameState {
     mesh: Mesh,
-
-    head_index: usize,
-
     map_info: SnakeGridMap,
     move_direc: MoveDirection,
 }
@@ -141,7 +166,6 @@ impl SnakeGameState {
 
         Ok(SnakeGameState {
             mesh: mesh,
-            head_index: 218,
             map_info: map_info,
             move_direc: MoveDirection::Right,
         })
