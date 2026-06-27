@@ -32,7 +32,7 @@ enum MoveDirection {
     Right,
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 struct SnakeGameCoord {
     x: u32,
     y: u32,
