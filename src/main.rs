@@ -182,18 +182,14 @@ impl SnakeGameState {
     }
 
     fn check_snake_loop(&mut self, ctx: &mut Context) {
-        let head_x = self.map_info.body_deque.front().unwrap().x;
-        let head_y = self.map_info.body_deque.front().unwrap().y;
-        let mut count = 0;
-        for element in &self.map_info.body_deque {
-            if head_x == element.x && head_y == element.y {
-                count += 1;
-                if count > 1 {
-                    break;
-                }
-            }
-        }
-        if count > 1 {
+        let snake_head = self.map_info.body_deque.front().unwrap();
+        if self
+            .map_info
+            .body_deque
+            .iter()
+            .skip(1)
+            .any(|seg| seg == snake_head)
+        {
             self.map_info = SnakeGrid::new();
             self.apple_mesh = SnakeGameState::build_apple_mesh(ctx, &self.map_info).unwrap();
             self.snake_mesh = SnakeGameState::build_snake_mesh(ctx, &self.map_info).unwrap();
