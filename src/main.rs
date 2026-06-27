@@ -68,7 +68,7 @@ impl SnakeGrid {
         true
     }
 
-    pub fn spwan_apple(&mut self) {
+    pub fn spawn_apple(&mut self) {
         let mut rng = rand::rng();
         let mut x: u32 = rng.random_range(0..GRID_COLS);
         let mut y: u32 = rng.random_range(0..GRID_ROWS);
@@ -235,7 +235,7 @@ impl EventHandler for SnakeGameState {
             let new_head = SnakeGameCoord::new(head_x, head_y);
             self.map_info.body_deque.push_front(new_head);
             if self.map_info.is_eating_apple() {
-                self.map_info.spwan_apple();
+                self.map_info.spawn_apple();
             } else {
                 self.map_info.body_deque.pop_back();
             }
