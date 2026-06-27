@@ -164,10 +164,10 @@ impl SnakeGameState {
         let snake_mesh = SnakeGameState::build_snake_mesh(ctx, &map_info).unwrap();
 
         Ok(SnakeGameState {
-            background_mesh: background_mesh,
-            apple_mesh: apple_mesh,
-            snake_mesh: snake_mesh,
-            map_info: map_info,
+            background_mesh,
+            apple_mesh,
+            snake_mesh,
+            map_info,
             move_direction: MoveDirection::Right,
         })
     }
