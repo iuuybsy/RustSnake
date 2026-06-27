@@ -33,48 +33,48 @@ enum MoveDirection {
 }
 
 #[derive(PartialEq)]
-struct SnakeGameCord {
+struct SnakeGameCoord {
     x: u32,
     y: u32,
 }
 
-impl SnakeGameCord {
+impl SnakeGameCoord {
     pub fn new(x: u32, y: u32) -> Self {
-        SnakeGameCord { x, y }
+        SnakeGameCoord { x, y }
     }
 }
 
-struct SnakeGridMap {
-    app_cord: SnakeGameCord,
-    body_deque: VecDeque<SnakeGameCord>,
+struct SnakeGrid {
+    apple_coord: SnakeGameCoord,
+    body_deque: VecDeque<SnakeGameCoord>,
 }
 
-impl SnakeGridMap {
+impl SnakeGrid {
     pub fn new() -> Self {
-        let app_cord = SnakeGameCord::new(INIT_APPLE_X, INIT_APPLE_Y);
-        let mut body_deque: VecDeque<SnakeGameCord> = VecDeque::new();
+        let apple_coord = SnakeGameCoord::new(INIT_APPLE_X, INIT_APPLE_Y);
+        let mut body_deque: VecDeque<SnakeGameCoord> = VecDeque::new();
         for i in INIT_BODY_LEFT..=INIT_BODY_RIGHT {
-            let body_cord = SnakeGameCord::new(i, INIT_APPLE_Y);
+            let body_cord = SnakeGameCoord::new(i, INIT_APPLE_Y);
             body_deque.push_front(body_cord);
         }
-        SnakeGridMap {
-            app_cord: app_cord,
-            body_deque: body_deque,
+        SnakeGrid {
+            apple_coord,
+            body_deque,
         }
     }
 
     fn is_valid_apple_cord(&self, x: u32, y: u32) -> bool {
-        if x == self.app_cord.x && y == self.app_cord.y {
+        if x == self.apple_coord.x && y == self.apple_coord.y {
             return false;
         }
-        let cur_cord = SnakeGameCord::new(x, y);
+        let cur_cord = SnakeGameCoord::new(x, y);
         if self.body_deque.contains(&cur_cord) {
             return false;
         }
         true
     }
 
-    pub fn gen_new_apple(&mut self) {
+    pub fn spwan_apple(&mut self) {
         let mut rng = rand::rng();
         let mut x: u32 = rng.random_range(0..GRID_COLS);
         let mut y: u32 = rng.random_range(0..GRID_ROWS);
@@ -83,15 +83,15 @@ impl SnakeGridMap {
             y = rng.random_range(0..GRID_ROWS);
         }
 
-        self.app_cord.x = x;
-        self.app_cord.y = y;
+        self.apple_coord.x = x;
+        self.apple_coord.y = y;
     }
 
     pub fn get_element(&self, x: u32, y: u32) -> SnakeGameElement {
-        if x == self.app_cord.x && y == self.app_cord.y {
+        if x == self.apple_coord.x && y == self.apple_coord.y {
             return SnakeGameElement::Apple;
         }
-        let cur_cord = SnakeGameCord::new(x, y);
+        let cur_cord = SnakeGameCoord::new(x, y);
         if self.body_deque.contains(&cur_cord) {
             return SnakeGameElement::Body;
         }
@@ -99,18 +99,18 @@ impl SnakeGridMap {
     }
 
     pub fn is_eating_apple(&self) -> bool {
-        self.body_deque.front() == Some(&self.app_cord)
+        self.body_deque.front() == Some(&self.apple_coord)
     }
 }
 
 struct SnakeGameState {
     mesh: Mesh,
-    map_info: SnakeGridMap,
-    move_direc: MoveDirection,
+    map_info: SnakeGrid,
+    move_direction: MoveDirection,
 }
 
 impl SnakeGameState {
-    fn gen_mesh(ctx: &mut Context, map_info: &SnakeGridMap) -> Result<Mesh, GameError> {
+    fn build_mesh(ctx: &mut Context, map_info: &SnakeGrid) -> Result<Mesh, GameError> {
         let silver_color = Color::from_rgb(192, 192, 192);
         let grey_color = Color::from_rgb(128, 128, 128);
 
@@ -159,13 +159,13 @@ impl SnakeGameState {
     }
 
     pub fn new(ctx: &mut Context) -> Result<Self, GameError> {
-        let map_info = SnakeGridMap::new();
-        let mesh = SnakeGameState::gen_mesh(ctx, &map_info).unwrap();
+        let map_info = SnakeGrid::new();
+        let mesh = SnakeGameState::build_mesh(ctx, &map_info).unwrap();
 
         Ok(SnakeGameState {
             mesh: mesh,
             map_info: map_info,
-            move_direc: MoveDirection::Right,
+            move_direction: MoveDirection::Right,
         })
     }
 
@@ -182,9 +182,9 @@ impl SnakeGameState {
             }
         }
         if count > 1 {
-            self.map_info = SnakeGridMap::new();
-            self.mesh = SnakeGameState::gen_mesh(ctx, &self.map_info).unwrap();
-            self.move_direc = MoveDirection::Right;
+            self.map_info = SnakeGrid::new();
+            self.mesh = SnakeGameState::build_mesh(ctx, &self.map_info).unwrap();
+            self.move_direction = MoveDirection::Right;
         }
     }
 }
@@ -199,10 +199,10 @@ impl EventHandler for SnakeGameState {
 
     fn update(&mut self, ctx: &mut Context) -> Result<(), GameError> {
         if ctx.time.check_update_time(TARGET_FPS) {
-            self.mesh = SnakeGameState::gen_mesh(ctx, &self.map_info).unwrap();
+            self.mesh = SnakeGameState::build_mesh(ctx, &self.map_info).unwrap();
             let mut head_x = self.map_info.body_deque.front().unwrap().x;
             let mut head_y = self.map_info.body_deque.front().unwrap().y;
-            match self.move_direc {
+            match self.move_direction {
                 MoveDirection::Down => {
                     head_y = (head_y + 1) % GRID_ROWS;
                 }
@@ -224,10 +224,10 @@ impl EventHandler for SnakeGameState {
                     head_x = (head_x + 1) % GRID_COLS;
                 }
             }
-            let new_head = SnakeGameCord::new(head_x, head_y);
+            let new_head = SnakeGameCoord::new(head_x, head_y);
             self.map_info.body_deque.push_front(new_head);
             if self.map_info.is_eating_apple() {
-                self.map_info.gen_new_apple();
+                self.map_info.spwan_apple();
             } else {
                 self.map_info.body_deque.pop_back();
             }
@@ -245,13 +245,13 @@ impl EventHandler for SnakeGameState {
         if !repeated {
             let key_info = input.event.logical_key;
 
-            match self.move_direc {
+            match self.move_direction {
                 MoveDirection::Left => match key_info {
                     Key::Character(key) => {
                         if key == "s" {
-                            self.move_direc = MoveDirection::Down;
+                            self.move_direction = MoveDirection::Down;
                         } else if key == "w" {
-                            self.move_direc = MoveDirection::Up;
+                            self.move_direction = MoveDirection::Up;
                         }
                     }
                     _ => {}
@@ -259,9 +259,9 @@ impl EventHandler for SnakeGameState {
                 MoveDirection::Up => match key_info {
                     Key::Character(key) => {
                         if key == "a" {
-                            self.move_direc = MoveDirection::Left;
+                            self.move_direction = MoveDirection::Left;
                         } else if key == "d" {
-                            self.move_direc = MoveDirection::Right;
+                            self.move_direction = MoveDirection::Right;
                         }
                     }
                     _ => {}
@@ -269,9 +269,9 @@ impl EventHandler for SnakeGameState {
                 MoveDirection::Right => match key_info {
                     Key::Character(key) => {
                         if key == "s" {
-                            self.move_direc = MoveDirection::Down;
+                            self.move_direction = MoveDirection::Down;
                         } else if key == "w" {
-                            self.move_direc = MoveDirection::Up;
+                            self.move_direction = MoveDirection::Up;
                         }
                     }
                     _ => {}
@@ -279,9 +279,9 @@ impl EventHandler for SnakeGameState {
                 MoveDirection::Down => match key_info {
                     Key::Character(key) => {
                         if key == "a" {
-                            self.move_direc = MoveDirection::Left;
+                            self.move_direction = MoveDirection::Left;
                         } else if key == "d" {
-                            self.move_direc = MoveDirection::Right;
+                            self.move_direction = MoveDirection::Right;
                         }
                     }
                     _ => {}
