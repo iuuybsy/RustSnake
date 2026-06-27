@@ -28,6 +28,7 @@ enum MoveDirection {
     Right,
 }
 
+#[derive(PartialEq)]
 struct SnakeGameCord {
     x: u32,
     y: u32,
@@ -64,10 +65,9 @@ impl SnakeGridMap {
         if x == self.app_cord.x && y == self.app_cord.y {
             return false;
         }
-        for body_cord in &self.body_deque {
-            if x == body_cord.x && y == body_cord.y {
-                return false;
-            }
+        let cur_cord = SnakeGameCord::new(x, y);
+        if self.body_deque.contains(&cur_cord) {
+            return false;
         }
         true
     }
@@ -91,17 +91,15 @@ impl SnakeGridMap {
         if x == self.app_cord.x && y == self.app_cord.y {
             return Ok(SnakeGameElement::Apple);
         }
-        for element in &self.body_deque {
-            if x == element.x && y == element.y {
-                return Ok(SnakeGameElement::Body);
-            }
+        let cur_cord = SnakeGameCord::new(x, y);
+        if self.body_deque.contains(&cur_cord) {
+            return Ok(SnakeGameElement::Body);
         }
         Ok(SnakeGameElement::Empty)
     }
 
     pub fn is_eating_apple(&self) -> bool {
-        self.body_deque.front().unwrap().x == self.app_cord.x
-            && self.body_deque.front().unwrap().y == self.app_cord.y
+        self.body_deque.contains(&self.app_cord)
     }
 }
 
@@ -207,27 +205,12 @@ impl EventHandler for SnakeGameState {
             match self.move_direc {
                 MoveDirection::Down => {
                     head_y = (head_y + 1) % GRID_ROWS;
-                    let new_head = SnakeGameCord::new(head_x, head_y);
-                    self.map_info.body_deque.push_front(new_head);
-                    if self.map_info.is_eating_apple() {
-                        self.map_info.gen_new_apple()?;
-                    } else {
-                        self.map_info.body_deque.pop_back();
-                    }
                 }
                 MoveDirection::Left => {
                     if head_x == 0 {
                         head_x = GRID_COLS - 1;
                     } else {
                         head_x = head_x - 1;
-                    }
-                    self.map_info
-                        .body_deque
-                        .push_front(SnakeGameCord::new(head_x, head_y));
-                    if self.map_info.is_eating_apple() {
-                        self.map_info.gen_new_apple()?;
-                    } else {
-                        self.map_info.body_deque.pop_back();
                     }
                 }
                 MoveDirection::Up => {
@@ -236,26 +219,17 @@ impl EventHandler for SnakeGameState {
                     } else {
                         head_y = head_y - 1;
                     }
-                    self.map_info
-                        .body_deque
-                        .push_front(SnakeGameCord::new(head_x, head_y));
-                    if self.map_info.is_eating_apple() {
-                        self.map_info.gen_new_apple()?;
-                    } else {
-                        self.map_info.body_deque.pop_back();
-                    }
                 }
                 MoveDirection::Right => {
                     head_x = (head_x + 1) % GRID_COLS;
-                    self.map_info
-                        .body_deque
-                        .push_front(SnakeGameCord::new(head_x, head_y));
-                    if self.map_info.is_eating_apple() {
-                        self.map_info.gen_new_apple()?;
-                    } else {
-                        self.map_info.body_deque.pop_back();
-                    }
                 }
+            }
+            let new_head = SnakeGameCord::new(head_x, head_y);
+            self.map_info.body_deque.push_front(new_head);
+            if self.map_info.is_eating_apple() {
+                self.map_info.gen_new_apple()?;
+            } else {
+                self.map_info.body_deque.pop_back();
             }
             self.check_snake_loop(ctx);
         }
