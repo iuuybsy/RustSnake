@@ -4,6 +4,7 @@ use ggez::{
     event::{self, EventHandler},
     glam::Vec2,
     graphics::{self, Canvas, Color, DrawMode, Mesh, MeshBuilder, Rect},
+    winit::keyboard::Key,
 };
 use rand::prelude::*;
 use std::collections::VecDeque;
@@ -251,17 +252,19 @@ impl EventHandler for SnakeGameState {
     ) -> Result<(), GameError> {
         if !repeated {
             let key_info = input.event.logical_key;
-            let key_str = key_info.to_text().unwrap();
-            let new_direction = match key_str {
-                "s" => Some(MoveDirection::Down),
-                "a" => Some(MoveDirection::Left),
-                "w" => Some(MoveDirection::Up),
-                "d" => Some(MoveDirection::Right),
-                _ => None,
-            };
-            if let Some(new_direction) = new_direction {
-                if !SnakeGameState::is_opposite_direction(&self.move_direction, &new_direction) {
-                    self.move_direction = new_direction;
+            if let Key::Character(key_str) = key_info {
+                let new_direction = match key_str.as_str() {
+                    "s" => Some(MoveDirection::Down),
+                    "a" => Some(MoveDirection::Left),
+                    "w" => Some(MoveDirection::Up),
+                    "d" => Some(MoveDirection::Right),
+                    _ => None,
+                };
+                if let Some(new_direction) = new_direction {
+                    if !SnakeGameState::is_opposite_direction(&self.move_direction, &new_direction)
+                    {
+                        self.move_direction = new_direction;
+                    }
                 }
             }
         }
