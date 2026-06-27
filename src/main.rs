@@ -26,43 +26,40 @@ enum MoveDirection {
     Right,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 struct SnakeGameCoord {
     x: u32,
     y: u32,
 }
 
-impl SnakeGameCoord {
-    pub fn new(x: u32, y: u32) -> Self {
-        SnakeGameCoord { x, y }
-    }
-}
-
-struct SnakeGrid {
+struct SnakeGameGrid {
     apple_coord: SnakeGameCoord,
-    body_deque: VecDeque<SnakeGameCoord>,
+    body: VecDeque<SnakeGameCoord>,
 }
 
-impl SnakeGrid {
+impl SnakeGameGrid {
     pub fn new() -> Self {
-        let apple_coord = SnakeGameCoord::new(INIT_APPLE_X, INIT_APPLE_Y);
-        let mut body_deque: VecDeque<SnakeGameCoord> = VecDeque::new();
+        let apple_coord = SnakeGameCoord {
+            x: INIT_APPLE_X,
+            y: INIT_APPLE_Y,
+        };
+        let mut body: VecDeque<SnakeGameCoord> = VecDeque::new();
         for i in INIT_BODY_LEFT..=INIT_BODY_RIGHT {
-            let body_cord = SnakeGameCoord::new(i, INIT_APPLE_Y);
-            body_deque.push_front(body_cord);
+            let body_coord = SnakeGameCoord {
+                x: i,
+                y: INIT_APPLE_Y,
+            };
+            body.push_front(body_coord);
         }
-        SnakeGrid {
-            apple_coord,
-            body_deque,
-        }
+        SnakeGameGrid { apple_coord, body }
     }
 
     fn is_valid_apple_cord(&self, x: u32, y: u32) -> bool {
         if x == self.apple_coord.x && y == self.apple_coord.y {
             return false;
         }
-        let cur_cord = SnakeGameCoord::new(x, y);
-        if self.body_deque.contains(&cur_cord) {
+        let cur_cord = SnakeGameCoord { x, y };
+        if self.body.contains(&cur_cord) {
             return false;
         }
         true
@@ -82,7 +79,7 @@ impl SnakeGrid {
     }
 
     pub fn is_eating_apple(&self) -> bool {
-        self.body_deque.front() == Some(&self.apple_coord)
+        self.body.front() == Some(&self.apple_coord)
     }
 }
 
@@ -90,7 +87,7 @@ struct SnakeGameState {
     background_mesh: Mesh,
     apple_mesh: Mesh,
     snake_mesh: Mesh,
-    map_info: SnakeGrid,
+    map_info: SnakeGameGrid,
     move_direction: MoveDirection,
 }
 
@@ -124,7 +121,7 @@ impl SnakeGameState {
         Ok(mesh)
     }
 
-    fn build_apple_mesh(ctx: &mut Context, map_info: &SnakeGrid) -> Result<Mesh, GameError> {
+    fn build_apple_mesh(ctx: &mut Context, map_info: &SnakeGameGrid) -> Result<Mesh, GameError> {
         let mut builder = MeshBuilder::new();
 
         let x_pos = map_info.apple_coord.x as f32 * SQUARE_LENGTH;
@@ -140,9 +137,9 @@ impl SnakeGameState {
         Ok(mesh)
     }
 
-    fn build_snake_mesh(ctx: &mut Context, map_info: &SnakeGrid) -> Result<Mesh, GameError> {
+    fn build_snake_mesh(ctx: &mut Context, map_info: &SnakeGameGrid) -> Result<Mesh, GameError> {
         let mut builder = MeshBuilder::new();
-        for element in &map_info.body_deque {
+        for element in &map_info.body {
             let x_pos = element.x as f32 * SQUARE_LENGTH;
             let y_pos = element.y as f32 * SQUARE_LENGTH;
             builder.rectangle(
@@ -157,11 +154,11 @@ impl SnakeGameState {
     }
 
     pub fn new(ctx: &mut Context) -> Result<Self, GameError> {
-        let map_info = SnakeGrid::new();
+        let map_info = SnakeGameGrid::new();
 
-        let background_mesh = SnakeGameState::build_background_mesh(ctx).unwrap();
-        let apple_mesh = SnakeGameState::build_apple_mesh(ctx, &map_info).unwrap();
-        let snake_mesh = SnakeGameState::build_snake_mesh(ctx, &map_info).unwrap();
+        let background_mesh = SnakeGameState::build_background_mesh(ctx)?;
+        let apple_mesh = SnakeGameState::build_apple_mesh(ctx, &map_info)?;
+        let snake_mesh = SnakeGameState::build_snake_mesh(ctx, &map_info)?;
 
         Ok(SnakeGameState {
             background_mesh,
@@ -181,20 +178,13 @@ impl SnakeGameState {
         }
     }
 
-    fn check_snake_loop(&mut self, ctx: &mut Context) {
-        let snake_head = self.map_info.body_deque.front().unwrap();
-        if self
-            .map_info
-            .body_deque
+    fn check_snake_loop(&self) -> bool {
+        let snake_head = self.map_info.body.front().unwrap();
+        self.map_info
+            .body
             .iter()
             .skip(1)
             .any(|seg| seg == snake_head)
-        {
-            self.map_info = SnakeGrid::new();
-            self.apple_mesh = SnakeGameState::build_apple_mesh(ctx, &self.map_info).unwrap();
-            self.snake_mesh = SnakeGameState::build_snake_mesh(ctx, &self.map_info).unwrap();
-            self.move_direction = MoveDirection::Right;
-        }
     }
 }
 
@@ -210,9 +200,9 @@ impl EventHandler for SnakeGameState {
 
     fn update(&mut self, ctx: &mut Context) -> Result<(), GameError> {
         if ctx.time.check_update_time(TARGET_FPS) {
-            self.snake_mesh = SnakeGameState::build_snake_mesh(ctx, &self.map_info).unwrap();
-            let mut head_x = self.map_info.body_deque.front().unwrap().x;
-            let mut head_y = self.map_info.body_deque.front().unwrap().y;
+            let snake_head = self.map_info.body.front().unwrap();
+            let mut head_x = snake_head.x;
+            let mut head_y = snake_head.y;
             match self.move_direction {
                 MoveDirection::Down => {
                     head_y = (head_y + 1) % GRID_ROWS;
@@ -227,15 +217,24 @@ impl EventHandler for SnakeGameState {
                     head_x = (head_x + 1) % GRID_COLS;
                 }
             }
-            let new_head = SnakeGameCoord::new(head_x, head_y);
-            self.map_info.body_deque.push_front(new_head);
+            let new_head = SnakeGameCoord {
+                x: head_x,
+                y: head_y,
+            };
+            self.map_info.body.push_front(new_head);
             if self.map_info.is_eating_apple() {
                 self.map_info.spawn_apple();
-                self.apple_mesh = SnakeGameState::build_apple_mesh(ctx, &self.map_info).unwrap();
+                self.apple_mesh = SnakeGameState::build_apple_mesh(ctx, &self.map_info)?;
             } else {
-                self.map_info.body_deque.pop_back();
+                self.map_info.body.pop_back();
             }
-            self.check_snake_loop(ctx);
+
+            if self.check_snake_loop() {
+                self.map_info = SnakeGameGrid::new();
+                self.apple_mesh = SnakeGameState::build_apple_mesh(ctx, &self.map_info)?;
+                self.move_direction = MoveDirection::Right;
+            }
+            self.snake_mesh = SnakeGameState::build_snake_mesh(ctx, &self.map_info)?;
         }
         Ok(())
     }
@@ -276,8 +275,7 @@ fn main() -> Result<(), GameError> {
 
     let (mut snake_context, snake_game_loop) = ContextBuilder::new("snake", "zdy")
         .default_conf(snake_conf)
-        .build()
-        .unwrap();
+        .build()?;
 
     let snake_game_state = SnakeGameState::new(&mut snake_context)?;
 
