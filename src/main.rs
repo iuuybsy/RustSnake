@@ -54,7 +54,7 @@ impl SnakeGameGrid {
         SnakeGameGrid { apple_coord, body }
     }
 
-    fn is_valid_apple_cord(&self, x: u32, y: u32) -> bool {
+    fn is_valid_apple_coord(&self, x: u32, y: u32) -> bool {
         if x == self.apple_coord.x && y == self.apple_coord.y {
             return false;
         }
@@ -69,7 +69,7 @@ impl SnakeGameGrid {
         let mut rng = rand::rng();
         let mut x: u32 = rng.random_range(0..GRID_COLS);
         let mut y: u32 = rng.random_range(0..GRID_ROWS);
-        while !self.is_valid_apple_cord(x, y) {
+        while !self.is_valid_apple_coord(x, y) {
             x = rng.random_range(0..GRID_COLS);
             y = rng.random_range(0..GRID_ROWS);
         }
@@ -178,13 +178,16 @@ impl SnakeGameState {
         }
     }
 
-    fn check_snake_loop(&self) -> bool {
-        let snake_head = self.map_info.body.front().unwrap();
-        self.map_info
-            .body
-            .iter()
-            .skip(1)
-            .any(|seg| seg == snake_head)
+    fn check_self_bite(&self) -> bool {
+        if let Some(snake_head) = self.map_info.body.front() {
+            self.map_info
+                .body
+                .iter()
+                .skip(1)
+                .any(|seg| seg == snake_head)
+        } else {
+            false
+        }
     }
 }
 
@@ -229,7 +232,7 @@ impl EventHandler for SnakeGameState {
                 self.map_info.body.pop_back();
             }
 
-            if self.check_snake_loop() {
+            if self.check_self_bite() {
                 self.map_info = SnakeGameGrid::new();
                 self.apple_mesh = SnakeGameState::build_apple_mesh(ctx, &self.map_info)?;
                 self.move_direction = MoveDirection::Right;
