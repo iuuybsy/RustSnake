@@ -36,7 +36,7 @@ struct SnakeGameGrid {
     apple_coord: SnakeGameCoord,
     body: VecDeque<SnakeGameCoord>,
     body_without_head: HashSet<SnakeGameCoord>,
-    empty_coord: HashSet<SnakeGameCoord>,
+    apple_spawn_coord: HashSet<SnakeGameCoord>,
     rng: ThreadRng,
 }
 
@@ -59,14 +59,14 @@ impl SnakeGameGrid {
             }
         }
 
-        let mut empty_coord: HashSet<SnakeGameCoord> = HashSet::new();
+        let mut apple_spawn_coord: HashSet<SnakeGameCoord> = HashSet::new();
 
         for i in 0..GRID_COLS {
             for j in 0..GRID_ROWS {
                 if j == INIT_APPLE_Y && i >= INIT_BODY_LEFT && i <= INIT_BODY_RIGHT {
                     continue;
                 }
-                empty_coord.insert(SnakeGameCoord { x: i, y: j });
+                apple_spawn_coord.insert(SnakeGameCoord { x: i, y: j });
             }
         }
 
@@ -76,13 +76,13 @@ impl SnakeGameGrid {
             apple_coord,
             body,
             body_without_head,
-            empty_coord,
+            apple_spawn_coord,
             rng,
         }
     }
 
     pub fn spawn_apple(&mut self) {
-        if let Some(new_apple_coord) = self.empty_coord.iter().choose(&mut self.rng) {
+        if let Some(new_apple_coord) = self.apple_spawn_coord.iter().choose(&mut self.rng) {
             self.apple_coord = *new_apple_coord;
         }
     }
@@ -225,17 +225,17 @@ impl EventHandler for SnakeGameState {
             };
             self.map_info.body_without_head.insert(snake_head.clone());
             self.map_info.body.push_front(new_head);
-            self.map_info.empty_coord.remove(&new_head);
+            self.map_info.apple_spawn_coord.remove(&new_head);
             if self.map_info.is_eating_apple() {
                 self.map_info.spawn_apple();
             } else {
                 if let Some(old_tail) = self.map_info.body.pop_back() {
-                    self.map_info.empty_coord.insert(old_tail);
+                    self.map_info.apple_spawn_coord.insert(old_tail);
                     self.map_info.body_without_head.remove(&old_tail);
                 }
             }
 
-            if self.check_self_bite() || self.map_info.empty_coord.len() == 0 {
+            if self.check_self_bite() || self.map_info.apple_spawn_coord.len() == 0 {
                 self.map_info = SnakeGameGrid::new();
                 self.move_direction = MoveDirection::Right;
             }
