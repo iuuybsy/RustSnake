@@ -7,7 +7,7 @@ use ggez::{
     winit::keyboard::Key,
 };
 use rand::prelude::*;
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 
 const TARGET_FPS: u32 = 10;
 const SQUARE_LENGTH: f32 = 30.0;
@@ -35,6 +35,8 @@ struct SnakeGameCoord {
 struct SnakeGameGrid {
     apple_coord: SnakeGameCoord,
     body: VecDeque<SnakeGameCoord>,
+    empty_coord: HashSet<SnakeGameCoord>,
+    rng: ThreadRng,
 }
 
 impl SnakeGameGrid {
@@ -51,31 +53,31 @@ impl SnakeGameGrid {
             };
             body.push_front(body_coord);
         }
-        SnakeGameGrid { apple_coord, body }
-    }
+        let mut empty_coord: HashSet<SnakeGameCoord> = HashSet::new();
 
-    fn is_valid_apple_coord(&self, x: u32, y: u32) -> bool {
-        if x == self.apple_coord.x && y == self.apple_coord.y {
-            return false;
+        for i in 0..GRID_COLS {
+            for j in 0..GRID_ROWS {
+                if j == INIT_APPLE_Y && i >= INIT_BODY_LEFT && i <= INIT_BODY_RIGHT {
+                    continue;
+                }
+                empty_coord.insert(SnakeGameCoord { x: i, y: j });
+            }
         }
-        let cur_cord = SnakeGameCoord { x, y };
-        if self.body.contains(&cur_cord) {
-            return false;
+
+        let rng = rand::rng();
+
+        SnakeGameGrid {
+            apple_coord,
+            body,
+            empty_coord,
+            rng,
         }
-        true
     }
 
     pub fn spawn_apple(&mut self) {
-        let mut rng = rand::rng();
-        let mut x: u32 = rng.random_range(0..GRID_COLS);
-        let mut y: u32 = rng.random_range(0..GRID_ROWS);
-        while !self.is_valid_apple_coord(x, y) {
-            x = rng.random_range(0..GRID_COLS);
-            y = rng.random_range(0..GRID_ROWS);
+        if let Some(new_apple_coord) = self.empty_coord.iter().choose(&mut self.rng) {
+            self.apple_coord = new_apple_coord.clone();
         }
-
-        self.apple_coord.x = x;
-        self.apple_coord.y = y;
     }
 
     pub fn is_eating_apple(&self) -> bool {
@@ -225,11 +227,14 @@ impl EventHandler for SnakeGameState {
                 y: head_y,
             };
             self.map_info.body.push_front(new_head);
+            self.map_info.empty_coord.remove(&new_head);
             if self.map_info.is_eating_apple() {
                 self.map_info.spawn_apple();
                 self.apple_mesh = SnakeGameState::build_apple_mesh(ctx, &self.map_info)?;
             } else {
-                self.map_info.body.pop_back();
+                if let Some(old_tail) = self.map_info.body.pop_back() {
+                    self.map_info.empty_coord.insert(old_tail);
+                }
             }
 
             if self.check_self_bite() {
