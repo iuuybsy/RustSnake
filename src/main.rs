@@ -237,7 +237,7 @@ impl EventHandler for SnakeGameState {
                 }
             }
 
-            if self.check_self_bite() {
+            if self.check_self_bite() || self.map_info.empty_coord.len() == 0 {
                 self.map_info = SnakeGameGrid::new();
                 self.apple_mesh = SnakeGameState::build_apple_mesh(ctx, &self.map_info)?;
                 self.move_direction = MoveDirection::Right;
