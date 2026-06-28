@@ -202,42 +202,43 @@ impl EventHandler for SnakeGameState {
 
     fn update(&mut self, ctx: &mut Context) -> Result<(), GameError> {
         if ctx.time.check_update_time(TARGET_FPS) {
-            let snake_head = self.map_info.body.front().unwrap();
-            let mut head_x = snake_head.x;
-            let mut head_y = snake_head.y;
-            match self.move_direction {
-                MoveDirection::Down => {
-                    head_y = (head_y + 1) % GRID_ROWS;
+            if let Some(snake_head) = self.map_info.body.front() {
+                let mut head_x = snake_head.x;
+                let mut head_y = snake_head.y;
+                match self.move_direction {
+                    MoveDirection::Down => {
+                        head_y = (head_y + 1) % GRID_ROWS;
+                    }
+                    MoveDirection::Left => {
+                        head_x = (head_x + GRID_COLS - 1) % GRID_COLS;
+                    }
+                    MoveDirection::Up => {
+                        head_y = (head_y + GRID_ROWS - 1) % GRID_ROWS;
+                    }
+                    MoveDirection::Right => {
+                        head_x = (head_x + 1) % GRID_COLS;
+                    }
                 }
-                MoveDirection::Left => {
-                    head_x = (head_x + GRID_COLS - 1) % GRID_COLS;
+                let new_head = SnakeGameCoord {
+                    x: head_x,
+                    y: head_y,
+                };
+                self.map_info.body_without_head.insert(*snake_head);
+                self.map_info.body.push_front(new_head);
+                self.map_info.apple_spawn_coord.remove(&new_head);
+                if self.map_info.is_eating_apple() {
+                    self.map_info.spawn_apple();
+                } else {
+                    if let Some(old_tail) = self.map_info.body.pop_back() {
+                        self.map_info.apple_spawn_coord.insert(old_tail);
+                        self.map_info.body_without_head.remove(&old_tail);
+                    }
                 }
-                MoveDirection::Up => {
-                    head_y = (head_y + GRID_ROWS - 1) % GRID_ROWS;
-                }
-                MoveDirection::Right => {
-                    head_x = (head_x + 1) % GRID_COLS;
-                }
-            }
-            let new_head = SnakeGameCoord {
-                x: head_x,
-                y: head_y,
-            };
-            self.map_info.body_without_head.insert(snake_head.clone());
-            self.map_info.body.push_front(new_head);
-            self.map_info.apple_spawn_coord.remove(&new_head);
-            if self.map_info.is_eating_apple() {
-                self.map_info.spawn_apple();
-            } else {
-                if let Some(old_tail) = self.map_info.body.pop_back() {
-                    self.map_info.apple_spawn_coord.insert(old_tail);
-                    self.map_info.body_without_head.remove(&old_tail);
-                }
-            }
 
-            if self.check_self_bite() || self.map_info.apple_spawn_coord.len() == 0 {
-                self.map_info = SnakeGameGrid::new();
-                self.move_direction = MoveDirection::Right;
+                if self.check_self_bite() || self.map_info.apple_spawn_coord.len() == 0 {
+                    self.map_info = SnakeGameGrid::new();
+                    self.move_direction = MoveDirection::Right;
+                }
             }
         }
         Ok(())
